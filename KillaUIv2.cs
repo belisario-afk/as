@@ -1001,11 +1001,11 @@ namespace Oxide.Plugins
                 RectTransform = { AnchorMin = "0.1 0.92", AnchorMax = "0.9 0.98" }
             }, skinPanel);
             
-            // Skin selection for each armor piece
+            // Skin selection for each armor piece (match armor preview spacing)
             for (int i = 0; i < armorSlotNames.Length; i++)
             {
-                float yMin = 0.80f - (i * 0.17f);
-                float yMax = yMin + 0.15f;
+                float yMin = 0.85f - (i * 0.14f);
+                float yMax = yMin + 0.12f;
                 
                 var skinSlotPanel = container.Add(new CuiPanel
                 {
@@ -1058,37 +1058,37 @@ namespace Oxide.Plugins
                 }, skinSlotPanel);
             }
             
-            // Save outfit button
+            // Save outfit button (moved to left side, positioned lower)
             container.Add(new CuiButton
             {
                 Button = {
                     Color = COLOR_SUCCESS,
                     Command = "killaui.outfit.save"
                 },
-                RectTransform = { AnchorMin = "0.1 0.02", AnchorMax = "0.45 0.10" },
+                RectTransform = { AnchorMin = "0.05 0.02", AnchorMax = "0.22 0.08" },
                 Text = {
                     Text = "SAVE OUTFIT",
-                    FontSize = 13,
+                    FontSize = 12,
                     Align = TextAnchor.MiddleCenter,
                     Color = COLOR_TEXT
                 }
-            }, skinPanel);
+            }, parent);
             
-            // Reset button
+            // Reset button (moved to left side, positioned lower)
             container.Add(new CuiButton
             {
                 Button = {
                     Color = "0.5 0.5 0.5 0.95",
                     Command = "killaui.outfit.reset"
                 },
-                RectTransform = { AnchorMin = "0.55 0.02", AnchorMax = "0.9 0.10" },
+                RectTransform = { AnchorMin = "0.23 0.02", AnchorMax = "0.40 0.08" },
                 Text = {
                     Text = "RESET TO DEFAULT",
-                    FontSize = 13,
+                    FontSize = 12,
                     Align = TextAnchor.MiddleCenter,
                     Color = COLOR_TEXT
                 }
-            }, skinPanel);
+            }, parent);
         }
         
         private string GetWeaponDisplayName(string weaponId)
