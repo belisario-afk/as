@@ -56,6 +56,130 @@ namespace Oxide.Plugins
         // Session state tracking
         private Dictionary<ulong, PlayerUIState> _playerStates = new Dictionary<ulong, PlayerUIState>();
         
+        // Configuration
+        private PluginConfig _config;
+        
+        #endregion
+        
+        #region Configuration
+        
+        private class PluginConfig
+        {
+            public List<WeaponConfig> Weapons { get; set; }
+            public List<AttachmentConfig> Attachments { get; set; }
+            public List<ArmorConfig> Armor { get; set; }
+            public List<SkinConfig> GunSkins { get; set; }
+            public List<SkinConfig> ArmorSkins { get; set; }
+        }
+        
+        private class WeaponConfig
+        {
+            public string Id { get; set; }
+            public string Name { get; set; }
+            public int Damage { get; set; }
+            public int Price { get; set; }
+        }
+        
+        private class AttachmentConfig
+        {
+            public string Id { get; set; }
+            public string Name { get; set; }
+            public string Category { get; set; }
+            public int Price { get; set; }
+        }
+        
+        private class ArmorConfig
+        {
+            public string Id { get; set; }
+            public string Name { get; set; }
+            public int Protection { get; set; }
+            public int Price { get; set; }
+        }
+        
+        private class SkinConfig
+        {
+            public string ItemId { get; set; }
+            public ulong SkinId { get; set; }
+            public string Name { get; set; }
+            public int Price { get; set; }
+        }
+        
+        protected override void LoadDefaultConfig()
+        {
+            _config = GetDefaultConfig();
+            SaveConfig();
+        }
+        
+        protected override void LoadConfig()
+        {
+            base.LoadConfig();
+            try
+            {
+                _config = Config.ReadObject<PluginConfig>();
+                if (_config == null)
+                {
+                    LoadDefaultConfig();
+                }
+            }
+            catch
+            {
+                PrintWarning("Error loading configuration file. Loading default configuration.");
+                LoadDefaultConfig();
+            }
+        }
+        
+        protected override void SaveConfig()
+        {
+            Config.WriteObject(_config, true);
+        }
+        
+        private PluginConfig GetDefaultConfig()
+        {
+            return new PluginConfig
+            {
+                Weapons = new List<WeaponConfig>
+                {
+                    new WeaponConfig { Id = "rifle.ak", Name = "AK-47", Damage = 30, Price = 500 },
+                    new WeaponConfig { Id = "rifle.lr300", Name = "LR-300", Damage = 40, Price = 600 },
+                    new WeaponConfig { Id = "smg.mp5", Name = "MP5", Damage = 35, Price = 450 },
+                    new WeaponConfig { Id = "python", Name = "Python", Damage = 55, Price = 400 },
+                    new WeaponConfig { Id = "rifle.bolt", Name = "Bolt Action", Damage = 80, Price = 700 },
+                    new WeaponConfig { Id = "smg.thompson", Name = "Thompson", Damage = 26, Price = 350 },
+                    new WeaponConfig { Id = "smg.2", Name = "Custom SMG", Damage = 28, Price = 300 }
+                },
+                Attachments = new List<AttachmentConfig>
+                {
+                    new AttachmentConfig { Id = "weapon.mod.holosight", Name = "Holo Sight", Category = "Scopes", Price = 200 },
+                    new AttachmentConfig { Id = "weapon.mod.8x.scope", Name = "8x Scope", Category = "Scopes", Price = 400 },
+                    new AttachmentConfig { Id = "weapon.mod.small.scope", Name = "16x Scope", Category = "Scopes", Price = 600 },
+                    new AttachmentConfig { Id = "weapon.mod.simplesight", Name = "Simple Sight", Category = "Scopes", Price = 150 },
+                    new AttachmentConfig { Id = "weapon.mod.silencer", Name = "Silencer", Category = "Barrel", Price = 250 },
+                    new AttachmentConfig { Id = "weapon.mod.muzzlebrake", Name = "Muzzle Brake", Category = "Barrel", Price = 200 },
+                    new AttachmentConfig { Id = "weapon.mod.muzzleboost", Name = "Muzzle Boost", Category = "Barrel", Price = 200 },
+                    new AttachmentConfig { Id = "weapon.mod.lasersight", Name = "Lasersight", Category = "Underbarrel", Price = 150 },
+                    new AttachmentConfig { Id = "weapon.mod.flashlight", Name = "Flashlight", Category = "Underbarrel", Price = 100 }
+                },
+                Armor = new List<ArmorConfig>
+                {
+                    new ArmorConfig { Id = "metal.facemask", Name = "Metal Facemask", Protection = 50, Price = 400 },
+                    new ArmorConfig { Id = "metal.plate.torso", Name = "Metal Chest Plate", Protection = 80, Price = 500 },
+                    new ArmorConfig { Id = "roadsign.kilt", Name = "Roadsign Kilt", Protection = 40, Price = 300 },
+                    new ArmorConfig { Id = "roadsign.jacket", Name = "Roadsign Vest", Protection = 35, Price = 300 },
+                    new ArmorConfig { Id = "tactical.gloves", Name = "Tactical Gloves", Protection = 10, Price = 150 }
+                },
+                GunSkins = new List<SkinConfig>
+                {
+                    // Example entries - populate with actual skin IDs
+                    // new SkinConfig { ItemId = "rifle.ak", SkinId = 123456, Name = "AK-47 Gold", Price = 1000 }
+                },
+                ArmorSkins = new List<SkinConfig>
+                {
+                    // Example entries - populate with actual skin IDs
+                    // new SkinConfig { ItemId = "metal.facemask", SkinId = 789012, Name = "Gold Facemask", Price = 800 }
+                }
+            };
+        }
+        
         #endregion
         
         #region Data Classes
@@ -81,6 +205,8 @@ namespace Oxide.Plugins
         
         private void Init()
         {
+            LoadConfig();
+            Puts($"[KillaUIv2] Configuration loaded: {_config.Weapons.Count} weapons, {_config.Attachments.Count} attachments, {_config.Armor.Count} armor pieces");
             Puts("[KillaUIv2] [DEBUG] KillaUIv2 initialized");
         }
         
@@ -1251,23 +1377,14 @@ namespace Oxide.Plugins
         
         private void RenderStoreGunsCategory(CuiElementContainer container, string parent, BasePlayer player, PlayerUIState state)
         {
-            // Top 7 Rust weapons
-            var guns = new[]
-            {
-                new { id = "rifle.ak", name = "AK-47", damage = 30, price = 500 },
-                new { id = "rifle.lr300", name = "LR-300", damage = 40, price = 600 },
-                new { id = "smg.mp5", name = "MP5", damage = 35, price = 450 },
-                new { id = "python", name = "Python", damage = 55, price = 400 },
-                new { id = "rifle.bolt", name = "Bolt Action", damage = 80, price = 700 },
-                new { id = "smg.thompson", name = "Thompson", damage = 26, price = 350 },
-                new { id = "smg.2", name = "Custom SMG", damage = 28, price = 300 }
-            };
+            // Load weapons from configuration
+            var guns = _config.Weapons;
             
             int itemsPerPage = 6; // 3x2 grid
-            int totalPages = (int)Math.Ceiling(guns.Length / (float)itemsPerPage);
+            int totalPages = (int)Math.Ceiling(guns.Count / (float)itemsPerPage);
             int currentPage = Math.Max(0, Math.Min(state.CurrentStorePage, totalPages - 1));
             int startIdx = currentPage * itemsPerPage;
-            int endIdx = Math.Min(startIdx + itemsPerPage, guns.Length);
+            int endIdx = Math.Min(startIdx + itemsPerPage, guns.Count);
             
             // Render 3x2 grid
             int itemIndex = 0;
@@ -1294,7 +1411,7 @@ namespace Oxide.Plugins
                     container.Add(new CuiLabel
                     {
                         Text = {
-                            Text = gun.name,
+                            Text = gun.Name,
                             FontSize = 14,
                             Align = TextAnchor.MiddleCenter,
                             Color = COLOR_TEXT
@@ -1308,7 +1425,7 @@ namespace Oxide.Plugins
                     {
                         try
                         {
-                            string imageUrl = (string)imageLibrary.Call("GetImage", gun.id, (ulong)0);
+                            string imageUrl = (string)imageLibrary.Call("GetImage", gun.Id, (ulong)0);
                             if (!string.IsNullOrEmpty(imageUrl))
                             {
                                 container.Add(new CuiElement
@@ -1330,7 +1447,7 @@ namespace Oxide.Plugins
                     container.Add(new CuiLabel
                     {
                         Text = {
-                            Text = $"Damage: {gun.damage}",
+                            Text = $"Damage: {gun.Damage}",
                             FontSize = 11,
                             Align = TextAnchor.MiddleCenter,
                             Color = COLOR_TEXT_DIM
@@ -1342,7 +1459,7 @@ namespace Oxide.Plugins
                     container.Add(new CuiLabel
                     {
                         Text = {
-                            Text = $"💰 {gun.price}",
+                            Text = $"💰 {gun.Price}",
                             FontSize = 12,
                             Align = TextAnchor.MiddleCenter,
                             Color = COLOR_WARNING
@@ -1356,7 +1473,7 @@ namespace Oxide.Plugins
                     {
                         Button = {
                             Color = owned ? COLOR_TEXT_DIM : COLOR_SUCCESS,
-                            Command = owned ? "" : $"killaui.store.purchase {gun.id} {gun.price}"
+                            Command = owned ? "" : $"killaui.store.purchase {gun.Id} {gun.Price}"
                         },
                         RectTransform = { AnchorMin = "0.15 0.05", AnchorMax = "0.85 0.18" },
                         Text = {
@@ -1425,24 +1542,14 @@ namespace Oxide.Plugins
         
         private void RenderStoreAttachmentsCategory(CuiElementContainer container, string parent, BasePlayer player, PlayerUIState state)
         {
-            var attachments = new[]
-            {
-                new { id = "weapon.mod.holosight", name = "Holo Sight", category = "Scopes", price = 200 },
-                new { id = "weapon.mod.8x.scope", name = "8x Scope", category = "Scopes", price = 400 },
-                new { id = "weapon.mod.small.scope", name = "16x Scope", category = "Scopes", price = 600 },
-                new { id = "weapon.mod.simplesight", name = "Simple Sight", category = "Scopes", price = 150 },
-                new { id = "weapon.mod.silencer", name = "Silencer", category = "Barrel", price = 250 },
-                new { id = "weapon.mod.muzzlebrake", name = "Muzzle Brake", category = "Barrel", price = 200 },
-                new { id = "weapon.mod.muzzleboost", name = "Muzzle Boost", category = "Barrel", price = 200 },
-                new { id = "weapon.mod.lasersight", name = "Lasersight", category = "Underbarrel", price = 150 },
-                new { id = "weapon.mod.flashlight", name = "Flashlight", category = "Underbarrel", price = 100 }
-            };
+            // Load attachments from configuration
+            var attachments = _config.Attachments;
             
             int itemsPerPage = 6; // 3x2 grid
-            int totalPages = (int)Math.Ceiling(attachments.Length / (float)itemsPerPage);
+            int totalPages = (int)Math.Ceiling(attachments.Count / (float)itemsPerPage);
             int currentPage = Math.Max(0, Math.Min(state.CurrentStorePage, totalPages - 1));
             int startIdx = currentPage * itemsPerPage;
-            int endIdx = Math.Min(startIdx + itemsPerPage, attachments.Length);
+            int endIdx = Math.Min(startIdx + itemsPerPage, attachments.Count);
             
             // Render 3x2 grid
             int itemIndex = 0;
@@ -1469,7 +1576,7 @@ namespace Oxide.Plugins
                     container.Add(new CuiLabel
                     {
                         Text = {
-                            Text = attachment.name,
+                            Text = attachment.Name,
                             FontSize = 13,
                             Align = TextAnchor.MiddleCenter,
                             Color = COLOR_TEXT
@@ -1481,7 +1588,7 @@ namespace Oxide.Plugins
                     container.Add(new CuiLabel
                     {
                         Text = {
-                            Text = attachment.category,
+                            Text = attachment.Category,
                             FontSize = 10,
                             Align = TextAnchor.MiddleCenter,
                             Color = COLOR_TEXT_DIM
@@ -1495,7 +1602,7 @@ namespace Oxide.Plugins
                     {
                         try
                         {
-                            string imageUrl = (string)imageLibrary.Call("GetImage", attachment.id, (ulong)0);
+                            string imageUrl = (string)imageLibrary.Call("GetImage", attachment.Id, (ulong)0);
                             if (!string.IsNullOrEmpty(imageUrl))
                             {
                                 container.Add(new CuiElement
@@ -1517,7 +1624,7 @@ namespace Oxide.Plugins
                     container.Add(new CuiLabel
                     {
                         Text = {
-                            Text = $"💰 {attachment.price}",
+                            Text = $"💰 {attachment.Price}",
                             FontSize = 12,
                             Align = TextAnchor.MiddleCenter,
                             Color = COLOR_WARNING
@@ -1531,7 +1638,7 @@ namespace Oxide.Plugins
                     {
                         Button = {
                             Color = owned ? COLOR_TEXT_DIM : COLOR_SUCCESS,
-                            Command = owned ? "" : $"killaui.store.purchase {attachment.id} {attachment.price}"
+                            Command = owned ? "" : $"killaui.store.purchase {attachment.Id} {attachment.Price}"
                         },
                         RectTransform = { AnchorMin = "0.15 0.05", AnchorMax = "0.85 0.18" },
                         Text = {
@@ -1600,17 +1707,11 @@ namespace Oxide.Plugins
         
         private void RenderStoreClothingCategory(CuiElementContainer container, string parent, BasePlayer player, PlayerUIState state)
         {
-            var clothing = new[]
-            {
-                new { id = "metal.facemask", name = "Metal Facemask", protection = 50, price = 400 },
-                new { id = "metal.plate.torso", name = "Metal Chest Plate", protection = 80, price = 500 },
-                new { id = "roadsign.kilt", name = "Roadsign Kilt", protection = 40, price = 300 },
-                new { id = "roadsign.jacket", name = "Roadsign Vest", protection = 35, price = 300 },
-                new { id = "tactical.gloves", name = "Tactical Gloves", protection = 10, price = 150 }
-            };
+            // Load armor from configuration
+            var clothing = _config.Armor;
             
-            // Render all 5 items (no pagination needed)
-            for (int i = 0; i < clothing.Length; i++)
+            // Render all items (no pagination needed)
+            for (int i = 0; i < clothing.Count; i++)
             {
                 var item = clothing[i];
                 float xMin = 0.05f + (i % 3) * 0.315f;
@@ -1628,7 +1729,7 @@ namespace Oxide.Plugins
                 container.Add(new CuiLabel
                 {
                     Text = {
-                        Text = item.name,
+                        Text = item.Name,
                         FontSize = 12,
                         Align = TextAnchor.MiddleCenter,
                         Color = COLOR_TEXT
@@ -1642,7 +1743,7 @@ namespace Oxide.Plugins
                 {
                     try
                     {
-                        string imageUrl = (string)imageLibrary.Call("GetImage", item.id, (ulong)0);
+                        string imageUrl = (string)imageLibrary.Call("GetImage", item.Id, (ulong)0);
                         if (!string.IsNullOrEmpty(imageUrl))
                         {
                             container.Add(new CuiElement
@@ -1664,7 +1765,7 @@ namespace Oxide.Plugins
                 container.Add(new CuiLabel
                 {
                     Text = {
-                        Text = $"Protection: {item.protection}",
+                        Text = $"Protection: {item.Protection}",
                         FontSize = 11,
                         Align = TextAnchor.MiddleCenter,
                         Color = COLOR_TEXT_DIM
@@ -1676,7 +1777,7 @@ namespace Oxide.Plugins
                 container.Add(new CuiLabel
                 {
                     Text = {
-                        Text = $"💰 {item.price}",
+                        Text = $"💰 {item.Price}",
                         FontSize = 12,
                         Align = TextAnchor.MiddleCenter,
                         Color = COLOR_WARNING
@@ -1690,7 +1791,7 @@ namespace Oxide.Plugins
                 {
                     Button = {
                         Color = owned ? COLOR_TEXT_DIM : COLOR_SUCCESS,
-                        Command = owned ? "" : $"killaui.store.purchase {item.id} {item.price}"
+                        Command = owned ? "" : $"killaui.store.purchase {item.Id} {item.Price}"
                     },
                     RectTransform = { AnchorMin = "0.15 0.05", AnchorMax = "0.85 0.18" },
                     Text = {
