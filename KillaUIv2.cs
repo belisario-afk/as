@@ -2873,21 +2873,33 @@ namespace Oxide.Plugins
             var player = arg.Player();
             if (player == null) return;
             
-            if (arg.Args == null || arg.Args.Length < 2) return;
+            if (arg.Args == null || arg.Args.Length < 2)
+            {
+                player.ChatMessage("Error: Invalid purchase command.");
+                return;
+            }
             
             string itemId = arg.Args[0];
             int price = arg.GetInt(1, 0);
             
             // Call KillaDome to purchase item
-            var result = KillaDome?.Call("PurchaseItem", player.userID, itemId, price);
-            
-            if (result != null && (bool)result)
+            try
             {
-                player.ChatMessage($"Successfully purchased {itemId} for {price} Blood Tokens!");
+                var result = KillaDome?.Call("PurchaseItem", player.userID, itemId, price);
+                
+                if (result != null && (bool)result)
+                {
+                    player.ChatMessage($"✓ Successfully purchased {itemId} for {price} Blood Tokens!");
+                }
+                else
+                {
+                    player.ChatMessage("❌ Purchase failed. Not enough Blood Tokens or item already owned.");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                player.ChatMessage("Purchase failed. Not enough Blood Tokens or item already owned.");
+                Puts($"[KillaUIv2] Error during purchase: {ex.Message}");
+                player.ChatMessage("❌ Purchase failed. Contact an administrator.");
             }
             
             ShowMainUI(player, "store");
