@@ -35,6 +35,8 @@ namespace Oxide.Plugins
         [PluginReference]
         private Plugin ImageLibrary;
         
+        // DEPRECATED: KillaUI v1 is no longer used. Use KillaUIv2 instead.
+        // Kept for backward compatibility only. Will be removed in future version.
         [PluginReference]
         private Plugin KillaUI;
         
@@ -1063,8 +1065,8 @@ namespace Oxide.Plugins
             if (args.Length == 0)
             {
                 SendReply(player, "KillaDome Commands:\n" +
-                    "/kd open - Open lobby UI (current version)\n" +
-                    "/kd v2 - Open NEW redesigned UI (testing)\n" +
+                    "/kd open - Open lobby UI\n" +
+                    "/kd v2 - Open lobby UI (alias for 'open')\n" +
                     "/kd stats - View your stats\n" +
                     "/kd help - Show this help");
                 return;
@@ -1073,40 +1075,20 @@ namespace Oxide.Plugins
             switch (args[0].ToLower())
             {
                 case "open":
-                    if (KillaUI != null && KillaUI.IsLoaded)
-                    {
-                        try
-                        {
-                            var result = KillaUI.Call("ShowLobbyUI", player);
-                            SendReply(player, "Lobby UI opened (v1)");
-                            LogDebug($"ShowLobbyUI called successfully for {player.displayName}, result: {result}");
-                        }
-                        catch (Exception ex)
-                        {
-                            SendReply(player, $"Error opening UI. Check console logs.");
-                            PrintError($"Error calling ShowLobbyUI: {ex}");
-                        }
-                    }
-                    else
-                    {
-                        SendReply(player, "KillaUI plugin not loaded");
-                        PrintWarning($"KillaUI plugin not available. KillaUI: {KillaUI}, IsLoaded: {KillaUI?.IsLoaded}");
-                    }
-                    break;
-                    
                 case "v2":
                 case "openv2":
+                    // Phase 7: Redirecting all commands to KillaUIv2 (new UI)
                     if (KillaUIv2 != null && KillaUIv2.IsLoaded)
                     {
                         try
                         {
                             var result = KillaUIv2.Call("ShowLobbyUI", player);
-                            SendReply(player, "New Lobby UI opened (v2) - Testing new design!");
+                            SendReply(player, "Lobby UI opened");
                             LogDebug($"ShowLobbyUI v2 called successfully for {player.displayName}, result: {result}");
                         }
                         catch (Exception ex)
                         {
-                            SendReply(player, $"Error opening UI v2. Check console logs.");
+                            SendReply(player, $"Error opening UI. Check console logs.");
                             PrintError($"Error calling ShowLobbyUI v2: {ex}");
                         }
                     }
@@ -1115,6 +1097,15 @@ namespace Oxide.Plugins
                         SendReply(player, "KillaUIv2 plugin not loaded");
                         PrintWarning($"KillaUIv2 plugin not available. KillaUIv2: {KillaUIv2}, IsLoaded: {KillaUIv2?.IsLoaded}");
                     }
+                    break;
+                    
+                case "v1":
+                case "old":
+                case "legacy":
+                    // Deprecated: Old UI support (KillaUI v1)
+                    SendReply(player, "⚠️ DEPRECATED: The old UI has been replaced.\n" +
+                        "Use /kd open for the new improved UI.");
+                    PrintWarning($"Player {player.displayName} attempted to use deprecated KillaUI v1");
                     break;
                     
                 case "stats":
@@ -1127,7 +1118,8 @@ namespace Oxide.Plugins
                     
                 case "help":
                     SendReply(player, "KillaDome - Full COD Experience\n" +
-                        "Use /kd open to access the lobby");
+                        "Use /kd open to access the lobby\n" +
+                        "New UI with 5 tabs: PLAY, LOADOUTS, STORE, STATS, SETTINGS");
                     break;
                     
                 default:
