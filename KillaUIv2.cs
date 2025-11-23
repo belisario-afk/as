@@ -855,24 +855,36 @@ namespace Oxide.Plugins
                 RectTransform = { AnchorMin = "0.1 0.92", AnchorMax = "0.9 0.98" }
             }, previewPanel);
             
-            // Stack 5 armor pieces vertically with ImageLibrary integration
-            string[] armorSlotNames = { "head", "chest", "legs", "torso", "hands" };
-            string[] armorDisplayNames = { "Metal Facemask", "Metal Chest Plate", "Roadsign Kilt", "Roadsign Vest", "Tactical Gloves" };
-            string[] defaultArmorItems = { "metal.facemask", "metal.plate.torso", "roadsign.kilt", "roadsign.jacket", "tactical.gloves" };
+            // Stack 6 armor pieces vertically with ImageLibrary integration
+            string[] armorSlotNames = { "head", "chest_armor", "chest_clothing", "pants", "leg_armor", "feet" };
+            string[] armorDisplayNames = { "Head", "Chest Armor", "Chest Clothing", "Pants", "Leg Armor", "Feet" };
+            string[] defaultArmorItems = { "metal.facemask", "metal.plate.torso", "roadsign.jacket", "pants", "roadsign.kilt", "shoes.boots" };
             
             // Get ImageLibrary plugin reference
             var imageLibrary = plugins.Find("ImageLibrary");
             
             for (int i = 0; i < armorSlotNames.Length; i++)
             {
-                float yMin = 0.80f - (i * 0.17f);
-                float yMax = yMin + 0.15f;
+                float yMin = 0.85f - (i * 0.14f);
+                float yMax = yMin + 0.12f;
                 
                 var slotPanel = container.Add(new CuiPanel
                 {
                     Image = { Color = "0.2 0.2 0.2 0.95" },
                     RectTransform = { AnchorMin = $"0.05 {yMin}", AnchorMax = $"0.95 {yMax}" }
                 }, previewPanel);
+                
+                // Slot label (small, top-left corner)
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = armorDisplayNames[i].ToUpper(),
+                        FontSize = 8,
+                        Align = TextAnchor.UpperLeft,
+                        Color = COLOR_TEXT_DIM
+                    },
+                    RectTransform = { AnchorMin = "0.15 0.82", AnchorMax = "0.85 0.98" }
+                }, slotPanel);
                 
                 // Get the current armor type for this slot from player state
                 string currentArmorItem = GetPlayerArmorType(player.userID, armorSlotNames[i]);
@@ -946,7 +958,7 @@ namespace Oxide.Plugins
                 container.Add(new CuiLabel
                 {
                     Text = {
-                        Text = currentArmorItem.Replace(".", " ").Replace("_", " "),
+                        Text = GetArmorDisplayName(currentArmorItem),
                         FontSize = 11,
                         Align = TextAnchor.MiddleLeft,
                         Color = COLOR_TEXT
@@ -1116,6 +1128,34 @@ namespace Oxide.Plugins
             }
         }
         
+        private string GetArmorDisplayName(string armorId)
+        {
+            // Map armor IDs to display names
+            switch (armorId.ToLower())
+            {
+                case "metal.facemask": return "Metal Facemask";
+                case "coffee.can.helmet": return "Coffee Can Helmet";
+                case "metal.plate.torso": return "Metal Chest Plate";
+                case "heavy.plate.jacket": return "Heavy Plate Jacket";
+                case "jacket.snow": return "Snow Jacket";
+                case "roadsign.jacket": return "Roadsign Vest";
+                case "hoodie": return "Hoodie";
+                case "burlap.shirt": return "Burlap Shirt";
+                case "pants": return "Pants";
+                case "pants.shorts": return "Shorts";
+                case "roadsign.kilt": return "Roadsign Kilt";
+                case "heavy.plate.pants": return "Heavy Plate Pants";
+                case "shoes.boots": return "Boots";
+                case "boots.frog": return "Frog Boots";
+                case "tactical.gloves": return "Tactical Gloves";
+                case "burlap.gloves": return "Burlap Gloves";
+                default:
+                    // Try to extract a readable name from the armor ID
+                    string name = armorId.Replace(".", " ").Replace("_", " ");
+                    return char.ToUpper(name[0]) + name.Substring(1);
+            }
+        }
+        
         private PlayerUIState GetPlayerState(ulong playerId)
         {
             if (!_playerStates.ContainsKey(playerId))
@@ -1135,11 +1175,12 @@ namespace Oxide.Plugins
             switch (slot)
             {
                 case "head": return "metal.facemask";
-                case "chest": return "metal.plate.torso";
-                case "legs": return "roadsign.kilt";
-                case "torso": return "roadsign.jacket";
-                case "hands": return "tactical.gloves";
-                default: return "metal.facemask";
+                case "chest_armor": return "metal.plate.torso";
+                case "chest_clothing": return "roadsign.jacket";
+                case "pants": return "pants";
+                case "leg_armor": return "roadsign.kilt";
+                case "feet": return "shoes.boots";
+                default: return "burlap.shirt"; // Generic fallback
             }
         }
 
