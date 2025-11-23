@@ -643,13 +643,13 @@ namespace Oxide.Plugins
                     var loadoutData = loadoutDataRaw as Dictionary<string, object>;
                     if (loadoutData != null && loadoutData.Count > 0)
                     {
-                        if (loadoutData.ContainsKey("primary") && loadoutData["primary"] != null)
+                        if (loadoutData.ContainsKey("Primary") && loadoutData["Primary"] != null)
                         {
-                            primaryWeapon = loadoutData["primary"].ToString();
+                            primaryWeapon = loadoutData["Primary"].ToString();
                         }
-                        if (loadoutData.ContainsKey("secondary") && loadoutData["secondary"] != null)
+                        if (loadoutData.ContainsKey("Secondary") && loadoutData["Secondary"] != null)
                         {
-                            secondaryWeapon = loadoutData["secondary"].ToString();
+                            secondaryWeapon = loadoutData["Secondary"].ToString();
                         }
                     }
                 }
@@ -970,11 +970,11 @@ namespace Oxide.Plugins
             try
             {
                 var equippedData = KillaDome?.Call("GetEquippedAttachments", player.userID, state.CurrentEditingWeaponSlot);
-                if (equippedData != null && equippedData is Dictionary<string, object> equipped)
+                if (equippedData != null && equippedData is Dictionary<string, string> equipped)
                 {
                     if (equipped.ContainsKey(state.CurrentAttachmentCategory))
                     {
-                        string equippedId = equipped[state.CurrentAttachmentCategory]?.ToString();
+                        string equippedId = equipped[state.CurrentAttachmentCategory];
                         if (!string.IsNullOrEmpty(equippedId))
                         {
                             equippedAttachments.Add(equippedId);
@@ -1670,8 +1670,15 @@ namespace Oxide.Plugins
                         RectTransform = { AnchorMin = "0.1 0.20", AnchorMax = "0.9 0.30" }
                     }, itemPanel);
                     
-                    // TODO: Check if player owns the weapon
-                    bool owned = false; // Placeholder
+                    // Check if player owns the weapon
+                    bool owned = false;
+                    try
+                    {
+                        var ownershipResult = KillaDome?.Call("CheckOwnership", player.userID, gun.Id);
+                        owned = ownershipResult != null && (bool)ownershipResult;
+                    }
+                    catch { }
+                    
                     container.Add(new CuiButton
                     {
                         Button = {
@@ -1835,8 +1842,15 @@ namespace Oxide.Plugins
                         RectTransform = { AnchorMin = "0.1 0.20", AnchorMax = "0.9 0.30" }
                     }, itemPanel);
                     
-                    // Buy button
-                    bool owned = false; // Placeholder
+                    // Check if player owns the attachment
+                    bool owned = false;
+                    try
+                    {
+                        var ownershipResult = KillaDome?.Call("CheckOwnership", player.userID, attachment.Id);
+                        owned = ownershipResult != null && (bool)ownershipResult;
+                    }
+                    catch { }
+                    
                     container.Add(new CuiButton
                     {
                         Button = {
@@ -1988,8 +2002,15 @@ namespace Oxide.Plugins
                     RectTransform = { AnchorMin = "0.1 0.20", AnchorMax = "0.9 0.30" }
                 }, itemPanel);
                 
-                // Buy button
-                bool owned = false; // Placeholder
+                // Check if player owns the armor
+                bool owned = false;
+                try
+                {
+                    var ownershipResult = KillaDome?.Call("CheckOwnership", player.userID, item.Id);
+                    owned = ownershipResult != null && (bool)ownershipResult;
+                }
+                catch { }
+                
                 container.Add(new CuiButton
                 {
                     Button = {

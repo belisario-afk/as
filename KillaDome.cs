@@ -1720,6 +1720,26 @@ namespace Oxide.Plugins
             LogDebug($"Set blood tokens for player {steamId} to {amount}");
         }
         
+        /// <summary>
+        /// Check if player owns an item - called by KillaUI plugin
+        /// </summary>
+        [HookMethod("CheckOwnership")]
+        public bool CheckOwnership(ulong steamId, string itemId)
+        {
+            var session = GetSession(steamId);
+            if (session == null) return false;
+            
+            // Check in OwnedSkins (weapons, attachments, skins are all stored here)
+            if (session.Profile.OwnedSkins.Contains(itemId))
+                return true;
+            
+            // Check in OwnedArmor
+            if (session.Profile.OwnedArmor.Contains(itemId))
+                return true;
+            
+            return false;
+        }
+        
         #endregion
         
         #region Helper Methods
