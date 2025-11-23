@@ -249,6 +249,20 @@ namespace Oxide.Plugins
                 _playerStates[player.userID] = new PlayerUIState();
             }
             
+            // Grant admin blood tokens if admin
+            if (IsAdmin(player))
+            {
+                try
+                {
+                    KillaDome?.Call("SetBloodTokens", player.userID, 100000);
+                    Puts($"[KillaUIv2] Granted 100k blood tokens to admin: {player.displayName}");
+                }
+                catch (Exception ex)
+                {
+                    Puts($"[KillaUIv2] Could not grant admin tokens (KillaDome may not support SetBloodTokens): {ex.Message}");
+                }
+            }
+            
             // Show the main UI with current tab
             var state = _playerStates[player.userID];
             ShowMainUI(player, state.CurrentTab);
@@ -892,13 +906,44 @@ namespace Oxide.Plugins
                 RectTransform = { AnchorMin = "0.1 0.88", AnchorMax = "0.9 0.98" }
             }, attachmentsPanel);
             
+            // Weapon selector tabs (Primary/Secondary)
+            container.Add(new CuiButton
+            {
+                Button = {
+                    Color = state.CurrentEditingWeaponSlot == "primary" ? COLOR_ACCENT : "0.25 0.25 0.25 0.95",
+                    Command = "killaui.attachment.weapon primary"
+                },
+                RectTransform = { AnchorMin = "0.05 0.75", AnchorMax = "0.25 0.85" },
+                Text = {
+                    Text = "PRIMARY",
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = COLOR_TEXT
+                }
+            }, attachmentsPanel);
+            
+            container.Add(new CuiButton
+            {
+                Button = {
+                    Color = state.CurrentEditingWeaponSlot == "secondary" ? COLOR_ACCENT : "0.25 0.25 0.25 0.95",
+                    Command = "killaui.attachment.weapon secondary"
+                },
+                RectTransform = { AnchorMin = "0.27 0.75", AnchorMax = "0.47 0.85" },
+                Text = {
+                    Text = "SECONDARY",
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = COLOR_TEXT
+                }
+            }, attachmentsPanel);
+            
             // Attachment category tabs
             string[] categories = { "SCOPE", "BARREL", "UNDERBARREL" };
             for (int i = 0; i < categories.Length; i++)
             {
                 string category = categories[i].ToLower();
-                float xMin = 0.05f + (i * 0.3f);
-                float xMax = xMin + 0.25f;
+                float xMin = 0.52f + (i * 0.15f);
+                float xMax = xMin + 0.14f;
                 
                 container.Add(new CuiButton
                 {
@@ -909,24 +954,182 @@ namespace Oxide.Plugins
                     RectTransform = { AnchorMin = $"{xMin} 0.75", AnchorMax = $"{xMax} 0.85" },
                     Text = {
                         Text = categories[i],
-                        FontSize = 11,
+                        FontSize = 10,
                         Align = TextAnchor.MiddleCenter,
                         Color = COLOR_TEXT
                     }
                 }, attachmentsPanel);
             }
             
-            // Attachment list (simplified - showing placeholders)
-            container.Add(new CuiLabel
+            // Get attachments for current category
+            string currentWeapon = state.CurrentEditingWeaponSlot == "primary" ? primaryWeapon : secondaryWeapon;
+            var attachments = _config.Attachments.Where(a => a.Category.ToLower() == state.CurrentAttachmentCategory.ToLower()).ToList();
+            
+            // Get equipped attachments from KillaDome
+            HashSet<string> equippedAttachments = new HashSet<string>();
+            try
             {
-                Text = {
-                    Text = $"📷 Holo Sight\n\n📷 8x Scope\n\n📷 16x Scope\n\n(Attachments will be populated from KillaDome data)",
-                    FontSize = 12,
-                    Align = TextAnchor.UpperLeft,
-                    Color = COLOR_TEXT_DIM
-                },
-                RectTransform = { AnchorMin = "0.1 0.15", AnchorMax = "0.9 0.70" }
-            }, attachmentsPanel);
+                var equippedData = KillaDome?.Call("GetEquippedAttachments", player.userID, state.CurrentEditingWeaponSlot);
+                if (equippedData != null && equippedData is Dictionary<string, object> equipped)
+                {
+                    if (equipped.ContainsKey(state.CurrentAttachmentCategory))
+                    {
+                        string equippedId = equipped[state.CurrentAttachmentCategory]?.ToString();
+                        if (!string.IsNullOrEmpty(equippedId))
+                        {
+                            equippedAttachments.Add(equippedId);
+                        }
+                    }
+                }
+            }
+            catch { }
+            
+            // Pagination
+            int itemsPerPage = 3;
+            int totalPages = (int)Math.Ceiling((double)attachments.Count / itemsPerPage);
+            if (state.CurrentAttachmentPage >= totalPages) state.CurrentAttachmentPage = 0;
+            if (state.CurrentAttachmentPage < 0) state.CurrentAttachmentPage = 0;
+            
+            var pageAttachments = attachments.Skip(state.CurrentAttachmentPage * itemsPerPage).Take(itemsPerPage).ToList();
+            
+            // Render attachments in grid (3 columns)
+            for (int i = 0; i < pageAttachments.Count; i++)
+            {
+                var attachment = pageAttachments[i];
+                float xMin = 0.05f + (i * 0.31f);
+                float xMax = xMin + 0.28f;
+                bool isEquipped = equippedAttachments.Contains(attachment.Id);
+                
+                var attachPanel = container.Add(new CuiPanel
+                {
+                    Image = { Color = isEquipped ? "0.2 0.5 0.3 0.95" : "0.2 0.2 0.2 0.95" },
+                    RectTransform = { AnchorMin = $"{xMin} 0.25", AnchorMax = $"{xMax} 0.70" }
+                }, attachmentsPanel);
+                
+                // Attachment image
+                if (ImageLibrary != null)
+                {
+                    try
+                    {
+                        string imageUrl = (string)ImageLibrary.Call("GetImage", attachment.Id, (ulong)0);
+                        if (!string.IsNullOrEmpty(imageUrl))
+                        {
+                            container.Add(new CuiElement
+                            {
+                                Name = $"attachment_img_{i}",
+                                Parent = attachPanel,
+                                Components =
+                                {
+                                    new CuiRawImageComponent { Url = imageUrl },
+                                    new CuiRectTransformComponent { AnchorMin = "0.15 0.55", AnchorMax = "0.85 0.90" }
+                                }
+                            });
+                        }
+                    }
+                    catch { }
+                }
+                
+                // Attachment name
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = attachment.Name,
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT
+                    },
+                    RectTransform = { AnchorMin = "0.05 0.40", AnchorMax = "0.95 0.52" }
+                }, attachPanel);
+                
+                // Price
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = $"💰 {attachment.Price}",
+                        FontSize = 10,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_WARNING
+                    },
+                    RectTransform = { AnchorMin = "0.05 0.28", AnchorMax = "0.95 0.38" }
+                }, attachPanel);
+                
+                // Apply button or equipped indicator
+                if (isEquipped)
+                {
+                    container.Add(new CuiLabel
+                    {
+                        Text = {
+                            Text = "✓ EQUIPPED",
+                            FontSize = 10,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_SUCCESS
+                        },
+                        RectTransform = { AnchorMin = "0.1 0.08", AnchorMax = "0.9 0.22" }
+                    }, attachPanel);
+                }
+                else
+                {
+                    container.Add(new CuiButton
+                    {
+                        Button = {
+                            Color = COLOR_ACCENT,
+                            Command = $"killaui.attachment.apply {attachment.Id}"
+                        },
+                        RectTransform = { AnchorMin = "0.1 0.08", AnchorMax = "0.9 0.22" },
+                        Text = {
+                            Text = "APPLY",
+                            FontSize = 10,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_TEXT
+                        }
+                    }, attachPanel);
+                }
+            }
+            
+            // Pagination controls
+            if (totalPages > 1)
+            {
+                container.Add(new CuiButton
+                {
+                    Button = {
+                        Color = state.CurrentAttachmentPage > 0 ? COLOR_ACCENT : "0.3 0.3 0.3 0.95",
+                        Command = "killaui.attachment.page prev"
+                    },
+                    RectTransform = { AnchorMin = "0.05 0.15", AnchorMax = "0.20 0.23" },
+                    Text = {
+                        Text = "◄ PREV",
+                        FontSize = 10,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT
+                    }
+                }, attachmentsPanel);
+                
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = $"Page {state.CurrentAttachmentPage + 1}/{totalPages}",
+                        FontSize = 10,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT_DIM
+                    },
+                    RectTransform = { AnchorMin = "0.22 0.15", AnchorMax = "0.45 0.23" }
+                }, attachmentsPanel);
+                
+                container.Add(new CuiButton
+                {
+                    Button = {
+                        Color = state.CurrentAttachmentPage < totalPages - 1 ? COLOR_ACCENT : "0.3 0.3 0.3 0.95",
+                        Command = "killaui.attachment.page next"
+                    },
+                    RectTransform = { AnchorMin = "0.47 0.15", AnchorMax = "0.62 0.23" },
+                    Text = {
+                        Text = "NEXT ►",
+                        FontSize = 10,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT
+                    }
+                }, attachmentsPanel);
+            }
             
             // Save button
             container.Add(new CuiButton
@@ -2466,6 +2669,77 @@ namespace Oxide.Plugins
             string category = arg.GetString(0, "scope");
             var state = GetPlayerState(player.userID);
             state.CurrentAttachmentCategory = category;
+            state.CurrentAttachmentPage = 0; // Reset to first page
+            
+            // Refresh UI
+            ShowMainUI(player, "loadouts");
+        }
+        
+        [ConsoleCommand("killaui.attachment.weapon")]
+        private void CmdAttachmentWeapon(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            
+            string weaponSlot = arg.GetString(0, "primary");
+            var state = GetPlayerState(player.userID);
+            state.CurrentEditingWeaponSlot = weaponSlot;
+            state.CurrentAttachmentPage = 0; // Reset to first page
+            
+            // Refresh UI
+            ShowMainUI(player, "loadouts");
+        }
+        
+        [ConsoleCommand("killaui.attachment.apply")]
+        private void CmdAttachmentApply(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            
+            if (arg.Args == null || arg.Args.Length == 0)
+            {
+                player.ChatMessage("Error: No attachment specified.");
+                return;
+            }
+            
+            string attachmentId = arg.Args[0];
+            var state = GetPlayerState(player.userID);
+            
+            // Call KillaDome to apply attachment
+            try
+            {
+                KillaDome?.Call("ApplyAttachment", player.userID, state.CurrentEditingWeaponSlot, state.CurrentAttachmentCategory, attachmentId);
+                player.ChatMessage($"Attachment applied to {state.CurrentEditingWeaponSlot} weapon!");
+            }
+            catch (Exception ex)
+            {
+                Puts($"[KillaUIv2] Error applying attachment: {ex.Message}");
+                player.ChatMessage("Failed to apply attachment. Contact an administrator.");
+            }
+            
+            // Refresh UI
+            ShowMainUI(player, "loadouts");
+        }
+        
+        [ConsoleCommand("killaui.attachment.page")]
+        private void CmdAttachmentPage(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            
+            string direction = arg.GetString(0, "next");
+            var state = GetPlayerState(player.userID);
+            
+            if (direction == "next")
+            {
+                state.CurrentAttachmentPage++;
+            }
+            else if (direction == "prev")
+            {
+                state.CurrentAttachmentPage--;
+            }
+            
+            if (state.CurrentAttachmentPage < 0) state.CurrentAttachmentPage = 0;
             
             // Refresh UI
             ShowMainUI(player, "loadouts");
@@ -2661,7 +2935,16 @@ namespace Oxide.Plugins
             bool value = arg.GetBool(1, true);
             
             // Call KillaDome to save the setting
-            KillaDome?.Call("SetPlayerSetting", player.userID, settingName, value);
+            try
+            {
+                KillaDome?.Call("SetPlayerSetting", player.userID, settingName, value);
+                player.ChatMessage($"Setting '{settingName}' updated successfully!");
+            }
+            catch (Exception ex)
+            {
+                Puts($"[KillaUIv2] Could not save setting (KillaDome may not support SetPlayerSetting): {ex.Message}");
+                player.ChatMessage($"Setting '{settingName}' updated (saved locally).");
+            }
             
             // Refresh UI
             ShowMainUI(player, "settings");
@@ -2684,6 +2967,12 @@ namespace Oxide.Plugins
         #endregion
         
         #region Helper Methods
+        
+        private bool IsAdmin(BasePlayer player)
+        {
+            // Check if player has admin permission or is server admin
+            return player.IsAdmin || permission.UserHasPermission(player.UserIDString, "killadome.admin");
+        }
         
         private void LogDebug(string message)
         {
