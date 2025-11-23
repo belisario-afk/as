@@ -579,17 +579,60 @@ namespace Oxide.Plugins
                 }
             }, primaryPanel);
             
-            // Placeholder for weapon image
-            container.Add(new CuiLabel
+            // Primary weapon image from ImageLibrary
+            var imageLibrary = plugins.Find("ImageLibrary");
+            if (imageLibrary != null)
             {
-                Text = {
-                    Text = "📷\n[Weapon Image]",
-                    FontSize = 14,
-                    Align = TextAnchor.MiddleCenter,
-                    Color = COLOR_TEXT_DIM
-                },
-                RectTransform = { AnchorMin = "0.2 0.15", AnchorMax = "0.8 0.4" }
-            }, primaryPanel);
+                try
+                {
+                    string imageUrl = (string)imageLibrary.Call("GetImage", primaryWeapon, (ulong)0);
+                    if (!string.IsNullOrEmpty(imageUrl))
+                    {
+                        container.Add(new CuiElement
+                        {
+                            Name = "primary_weapon_image",
+                            Parent = primaryPanel,
+                            Components =
+                            {
+                                new CuiRawImageComponent { Url = imageUrl },
+                                new CuiRectTransformComponent { AnchorMin = "0.2 0.15", AnchorMax = "0.8 0.4" }
+                            }
+                        });
+                    }
+                    else
+                    {
+                        // Fallback if image not found
+                        container.Add(new CuiLabel
+                        {
+                            Text = { Text = "📷", FontSize = 24, Align = TextAnchor.MiddleCenter, Color = COLOR_TEXT_DIM },
+                            RectTransform = { AnchorMin = "0.2 0.15", AnchorMax = "0.8 0.4" }
+                        }, primaryPanel);
+                    }
+                }
+                catch
+                {
+                    // Fallback on error
+                    container.Add(new CuiLabel
+                    {
+                        Text = { Text = "📷", FontSize = 24, Align = TextAnchor.MiddleCenter, Color = COLOR_TEXT_DIM },
+                        RectTransform = { AnchorMin = "0.2 0.15", AnchorMax = "0.8 0.4" }
+                    }, primaryPanel);
+                }
+            }
+            else
+            {
+                // ImageLibrary not available - show placeholder
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = "📷\n[Weapon Image]",
+                        FontSize = 14,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT_DIM
+                    },
+                    RectTransform = { AnchorMin = "0.2 0.15", AnchorMax = "0.8 0.4" }
+                }, primaryPanel);
+            }
             
             // SECONDARY WEAPON SECTION (Right)
             var secondaryPanel = container.Add(new CuiPanel
@@ -651,17 +694,59 @@ namespace Oxide.Plugins
                 }
             }, secondaryPanel);
             
-            // Placeholder for weapon image
-            container.Add(new CuiLabel
+            // Secondary weapon image from ImageLibrary
+            if (imageLibrary != null)
             {
-                Text = {
-                    Text = "📷\n[Weapon Image]",
-                    FontSize = 14,
-                    Align = TextAnchor.MiddleCenter,
-                    Color = COLOR_TEXT_DIM
-                },
-                RectTransform = { AnchorMin = "0.2 0.15", AnchorMax = "0.8 0.4" }
-            }, secondaryPanel);
+                try
+                {
+                    string imageUrl = (string)imageLibrary.Call("GetImage", secondaryWeapon, (ulong)0);
+                    if (!string.IsNullOrEmpty(imageUrl))
+                    {
+                        container.Add(new CuiElement
+                        {
+                            Name = "secondary_weapon_image",
+                            Parent = secondaryPanel,
+                            Components =
+                            {
+                                new CuiRawImageComponent { Url = imageUrl },
+                                new CuiRectTransformComponent { AnchorMin = "0.2 0.15", AnchorMax = "0.8 0.4" }
+                            }
+                        });
+                    }
+                    else
+                    {
+                        // Fallback if image not found
+                        container.Add(new CuiLabel
+                        {
+                            Text = { Text = "📷", FontSize = 24, Align = TextAnchor.MiddleCenter, Color = COLOR_TEXT_DIM },
+                            RectTransform = { AnchorMin = "0.2 0.15", AnchorMax = "0.8 0.4" }
+                        }, secondaryPanel);
+                    }
+                }
+                catch
+                {
+                    // Fallback on error
+                    container.Add(new CuiLabel
+                    {
+                        Text = { Text = "📷", FontSize = 24, Align = TextAnchor.MiddleCenter, Color = COLOR_TEXT_DIM },
+                        RectTransform = { AnchorMin = "0.2 0.15", AnchorMax = "0.8 0.4" }
+                    }, secondaryPanel);
+                }
+            }
+            else
+            {
+                // ImageLibrary not available - show placeholder
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = "📷\n[Weapon Image]",
+                        FontSize = 14,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT_DIM
+                    },
+                    RectTransform = { AnchorMin = "0.2 0.15", AnchorMax = "0.8 0.4" }
+                }, secondaryPanel);
+            }
             
             // ATTACHMENTS SECTION (Bottom)
             var attachmentsPanel = container.Add(new CuiPanel
@@ -997,16 +1082,37 @@ namespace Oxide.Plugins
         private string GetWeaponDisplayName(string weaponId)
         {
             // Map weapon IDs to display names
+            // Support both short names and full Rust item names
             switch (weaponId.ToLower())
             {
-                case "ak47": return "AK-47";
-                case "lr300": return "LR-300";
+                case "rifle.ak":
+                case "ak47":
+                case "ak": return "AK-47";
+                
+                case "rifle.lr300":
+                case "lr300":
+                case "lr": return "LR-300";
+                
+                case "smg.mp5":
                 case "mp5": return "MP5";
-                case "python": return "Python";
+                
+                case "python":
+                case "pistol.python": return "Python";
+                
+                case "rifle.bolt":
                 case "bolt": return "Bolt Action";
+                
+                case "smg.thompson":
                 case "thompson": return "Thompson";
-                case "smg2": return "Custom SMG";
-                default: return weaponId.ToUpper();
+                
+                case "smg.2":
+                case "smg2":
+                case "custom": return "Custom SMG";
+                
+                default: 
+                    // Try to extract a readable name from the weapon ID
+                    string name = weaponId.Replace("rifle.", "").Replace("smg.", "").Replace("pistol.", "");
+                    return name.ToUpper();
             }
         }
         
