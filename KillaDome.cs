@@ -755,7 +755,8 @@ namespace Oxide.Plugins
             
             // Get weapon info from centralized config
             string itemName = "rifle.ak"; // Default fallback
-            if (_gunConfig?.Guns != null && _gunConfig.Guns.TryGetValue(weaponName, out var gunDef))
+            string normalizedWeaponName = weaponName?.ToLower() ?? "ak47";
+            if (_gunConfig?.Guns != null && _gunConfig.Guns.TryGetValue(normalizedWeaponName, out var gunDef))
             {
                 itemName = gunDef.RustItemShortname;
             }

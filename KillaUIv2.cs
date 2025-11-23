@@ -53,6 +53,9 @@ namespace Oxide.Plugins
         private const string COLOR_TEXT_DIM = "0.7 0.7 0.7 1";        // Gray text
         private const string COLOR_BORDER = "0.3 0.3 0.3 1";          // Border color
         
+        // ImageLibrary constants
+        private const ulong DEFAULT_SKIN_ID = 0UL;                     // Default skin ID for ImageLibrary
+        
         // Session state tracking
         private Dictionary<ulong, PlayerUIState> _playerStates = new Dictionary<ulong, PlayerUIState>();
         
@@ -725,7 +728,7 @@ namespace Oxide.Plugins
             {
                 try
                 {
-                    string imageUrl = (string)imageLibrary.Call("GetImage", primaryWeapon, (ulong)0);
+                    string imageUrl = (string)imageLibrary.Call("GetImage", primaryWeapon, DEFAULT_SKIN_ID);
                     if (!string.IsNullOrEmpty(imageUrl))
                     {
                         container.Add(new CuiElement
@@ -839,7 +842,7 @@ namespace Oxide.Plugins
             {
                 try
                 {
-                    string imageUrl = (string)imageLibrary.Call("GetImage", secondaryWeapon, (ulong)0);
+                    string imageUrl = (string)imageLibrary.Call("GetImage", secondaryWeapon, DEFAULT_SKIN_ID);
                     if (!string.IsNullOrEmpty(imageUrl))
                     {
                         container.Add(new CuiElement
@@ -1011,7 +1014,7 @@ namespace Oxide.Plugins
                 {
                     try
                     {
-                        string imageUrl = (string)ImageLibrary.Call("GetImage", attachment.Id, (ulong)0);
+                        string imageUrl = (string)ImageLibrary.Call("GetImage", attachment.Id, DEFAULT_SKIN_ID);
                         if (!string.IsNullOrEmpty(imageUrl))
                         {
                             container.Add(new CuiElement
@@ -1239,7 +1242,7 @@ namespace Oxide.Plugins
                 {
                     try
                     {
-                        string imageUrl = (string)imageLibrary.Call("GetImage", currentArmorItem, (ulong)0);
+                        string imageUrl = (string)imageLibrary.Call("GetImage", currentArmorItem, DEFAULT_SKIN_ID);
                         if (!string.IsNullOrEmpty(imageUrl))
                         {
                             container.Add(new CuiElement
@@ -1628,7 +1631,7 @@ namespace Oxide.Plugins
                     {
                         try
                         {
-                            string imageUrl = (string)imageLibrary.Call("GetImage", gun.Id, (ulong)0);
+                            string imageUrl = (string)imageLibrary.Call("GetImage", gun.Id, DEFAULT_SKIN_ID);
                             if (!string.IsNullOrEmpty(imageUrl))
                             {
                                 container.Add(new CuiElement
@@ -1677,7 +1680,11 @@ namespace Oxide.Plugins
                         var ownershipResult = KillaDome?.Call("CheckOwnership", player.userID, gun.Id);
                         owned = ownershipResult != null && (bool)ownershipResult;
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        // Log ownership check failure for debugging
+                        Puts($"[KillaUIv2] Error checking ownership for {gun.Id}: {ex.GetType().Name}");
+                    }
                     
                     container.Add(new CuiButton
                     {
@@ -1812,7 +1819,7 @@ namespace Oxide.Plugins
                     {
                         try
                         {
-                            string imageUrl = (string)imageLibrary.Call("GetImage", attachment.Id, (ulong)0);
+                            string imageUrl = (string)imageLibrary.Call("GetImage", attachment.Id, DEFAULT_SKIN_ID);
                             if (!string.IsNullOrEmpty(imageUrl))
                             {
                                 container.Add(new CuiElement
@@ -1849,7 +1856,11 @@ namespace Oxide.Plugins
                         var ownershipResult = KillaDome?.Call("CheckOwnership", player.userID, attachment.Id);
                         owned = ownershipResult != null && (bool)ownershipResult;
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        // Log ownership check failure for debugging
+                        Puts($"[KillaUIv2] Error checking ownership for {attachment.Id}: {ex.GetType().Name}");
+                    }
                     
                     container.Add(new CuiButton
                     {
@@ -1960,7 +1971,7 @@ namespace Oxide.Plugins
                 {
                     try
                     {
-                        string imageUrl = (string)imageLibrary.Call("GetImage", item.Id, (ulong)0);
+                        string imageUrl = (string)imageLibrary.Call("GetImage", item.Id, DEFAULT_SKIN_ID);
                         if (!string.IsNullOrEmpty(imageUrl))
                         {
                             container.Add(new CuiElement
@@ -2009,7 +2020,11 @@ namespace Oxide.Plugins
                     var ownershipResult = KillaDome?.Call("CheckOwnership", player.userID, item.Id);
                     owned = ownershipResult != null && (bool)ownershipResult;
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    // Log ownership check failure for debugging
+                    Puts($"[KillaUIv2] Error checking ownership for {item.Id}: {ex.GetType().Name}");
+                }
                 
                 container.Add(new CuiButton
                 {
