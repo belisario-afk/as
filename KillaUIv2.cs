@@ -1045,56 +1045,1106 @@ namespace Oxide.Plugins
         
         #endregion
         
-        #region STORE Tab (Placeholder - to be implemented)
+        #region STORE Tab
         
         private void RenderStoreTab(CuiElementContainer container, string parent, BasePlayer player)
         {
-            container.Add(new CuiLabel
+            var state = GetPlayerState(player.userID);
+            
+            // Category tabs at the top
+            string[] categories = { "guns", "attachments", "clothing", "skins" };
+            string[] categoryLabels = { "GUNS", "ATTACHMENTS", "CLOTHING", "SKINS" };
+            
+            float tabWidth = 0.22f;
+            for (int i = 0; i < categories.Length; i++)
             {
+                float xMin = 0.05f + (i * 0.235f);
+                float xMax = xMin + tabWidth;
+                bool isActive = state.CurrentStoreCategory == categories[i];
+                
+                container.Add(new CuiButton
+                {
+                    Button = {
+                        Color = isActive ? COLOR_ACCENT : COLOR_SECONDARY,
+                        Command = $"killaui.store.category {categories[i]}"
+                    },
+                    RectTransform = { AnchorMin = $"{xMin} 0.88", AnchorMax = $"{xMax} 0.95" },
+                    Text = {
+                        Text = categoryLabels[i],
+                        FontSize = 13,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT
+                    }
+                }, parent);
+            }
+            
+            // Content area based on selected category
+            var contentPanel = container.Add(new CuiPanel
+            {
+                Image = { Color = "0 0 0 0" },
+                RectTransform = { AnchorMin = "0.05 0.05", AnchorMax = "0.95 0.85" }
+            }, parent);
+            
+            switch (state.CurrentStoreCategory)
+            {
+                case "guns":
+                    RenderStoreGunsCategory(container, contentPanel, player, state);
+                    break;
+                case "attachments":
+                    RenderStoreAttachmentsCategory(container, contentPanel, player, state);
+                    break;
+                case "clothing":
+                    RenderStoreClothingCategory(container, contentPanel, player, state);
+                    break;
+                case "skins":
+                    RenderStoreSkinsCategory(container, contentPanel, player, state);
+                    break;
+            }
+        }
+        
+        private void RenderStoreGunsCategory(CuiElementContainer container, string parent, BasePlayer player, PlayerUIState state)
+        {
+            // Top 7 Rust weapons
+            var guns = new[]
+            {
+                new { id = "rifle.ak", name = "AK-47", damage = 30, price = 500 },
+                new { id = "rifle.lr300", name = "LR-300", damage = 40, price = 600 },
+                new { id = "smg.mp5", name = "MP5", damage = 35, price = 450 },
+                new { id = "python", name = "Python", damage = 55, price = 400 },
+                new { id = "rifle.bolt", name = "Bolt Action", damage = 80, price = 700 },
+                new { id = "smg.thompson", name = "Thompson", damage = 26, price = 350 },
+                new { id = "smg.2", name = "Custom SMG", damage = 28, price = 300 }
+            };
+            
+            int itemsPerPage = 6; // 3x2 grid
+            int totalPages = (int)Math.Ceiling(guns.Length / (float)itemsPerPage);
+            int currentPage = Math.Max(0, Math.Min(state.CurrentStorePage, totalPages - 1));
+            int startIdx = currentPage * itemsPerPage;
+            int endIdx = Math.Min(startIdx + itemsPerPage, guns.Length);
+            
+            // Render 3x2 grid
+            int itemIndex = 0;
+            for (int row = 0; row < 2; row++)
+            {
+                for (int col = 0; col < 3; col++)
+                {
+                    int dataIdx = startIdx + itemIndex;
+                    if (dataIdx >= endIdx) break;
+                    
+                    var gun = guns[dataIdx];
+                    float xMin = 0.05f + (col * 0.315f);
+                    float xMax = xMin + 0.30f;
+                    float yMin = 0.50f - (row * 0.40f);
+                    float yMax = yMin + 0.35f;
+                    
+                    var itemPanel = container.Add(new CuiPanel
+                    {
+                        Image = { Color = COLOR_SECONDARY },
+                        RectTransform = { AnchorMin = $"{xMin} {yMin}", AnchorMax = $"{xMax} {yMax}" }
+                    }, parent);
+                    
+                    // Weapon name
+                    container.Add(new CuiLabel
+                    {
+                        Text = {
+                            Text = gun.name,
+                            FontSize = 14,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_TEXT
+                        },
+                        RectTransform = { AnchorMin = "0.1 0.75", AnchorMax = "0.9 0.9" }
+                    }, itemPanel);
+                    
+                    // Weapon image placeholder (ImageLibrary integration)
+                    var imageLibrary = plugins.Find("ImageLibrary");
+                    if (imageLibrary != null)
+                    {
+                        try
+                        {
+                            string imageUrl = (string)imageLibrary.Call("GetImage", gun.id, (ulong)0);
+                            if (!string.IsNullOrEmpty(imageUrl))
+                            {
+                                container.Add(new CuiElement
+                                {
+                                    Name = $"gun_image_{dataIdx}",
+                                    Parent = itemPanel,
+                                    Components =
+                                    {
+                                        new CuiRawImageComponent { Url = imageUrl },
+                                        new CuiRectTransformComponent { AnchorMin = "0.2 0.40", AnchorMax = "0.8 0.70" }
+                                    }
+                                });
+                            }
+                        }
+                        catch { }
+                    }
+                    
+                    // Damage stat
+                    container.Add(new CuiLabel
+                    {
+                        Text = {
+                            Text = $"Damage: {gun.damage}",
+                            FontSize = 11,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_TEXT_DIM
+                        },
+                        RectTransform = { AnchorMin = "0.1 0.32", AnchorMax = "0.9 0.40" }
+                    }, itemPanel);
+                    
+                    // Price and buy button
+                    container.Add(new CuiLabel
+                    {
+                        Text = {
+                            Text = $"💰 {gun.price}",
+                            FontSize = 12,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_WARNING
+                        },
+                        RectTransform = { AnchorMin = "0.1 0.20", AnchorMax = "0.9 0.30" }
+                    }, itemPanel);
+                    
+                    // TODO: Check if player owns the weapon
+                    bool owned = false; // Placeholder
+                    container.Add(new CuiButton
+                    {
+                        Button = {
+                            Color = owned ? COLOR_TEXT_DIM : COLOR_SUCCESS,
+                            Command = owned ? "" : $"killaui.store.purchase {gun.id} {gun.price}"
+                        },
+                        RectTransform = { AnchorMin = "0.15 0.05", AnchorMax = "0.85 0.18" },
+                        Text = {
+                            Text = owned ? "✓ OWNED" : "BUY NOW",
+                            FontSize = 11,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = owned ? COLOR_TEXT_DIM : COLOR_TEXT
+                        }
+                    }, itemPanel);
+                    
+                    itemIndex++;
+                }
+            }
+            
+            // Pagination controls
+            if (totalPages > 1)
+            {
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = $"Page {currentPage + 1}/{totalPages}",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT
+                    },
+                    RectTransform = { AnchorMin = "0.45 0.02", AnchorMax = "0.55 0.08" }
+                }, parent);
+                
+                if (currentPage > 0)
+                {
+                    container.Add(new CuiButton
+                    {
+                        Button = {
+                            Color = COLOR_ACCENT,
+                            Command = "killaui.store.page prev"
+                        },
+                        RectTransform = { AnchorMin = "0.30 0.02", AnchorMax = "0.42 0.08" },
+                        Text = {
+                            Text = "◄ PREV",
+                            FontSize = 11,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_TEXT
+                        }
+                    }, parent);
+                }
+                
+                if (currentPage < totalPages - 1)
+                {
+                    container.Add(new CuiButton
+                    {
+                        Button = {
+                            Color = COLOR_ACCENT,
+                            Command = "killaui.store.page next"
+                        },
+                        RectTransform = { AnchorMin = "0.58 0.02", AnchorMax = "0.70 0.08" },
+                        Text = {
+                            Text = "NEXT ►",
+                            FontSize = 11,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_TEXT
+                        }
+                    }, parent);
+                }
+            }
+        }
+        
+        private void RenderStoreAttachmentsCategory(CuiElementContainer container, string parent, BasePlayer player, PlayerUIState state)
+        {
+            var attachments = new[]
+            {
+                new { id = "weapon.mod.holosight", name = "Holo Sight", category = "Scopes", price = 200 },
+                new { id = "weapon.mod.8x.scope", name = "8x Scope", category = "Scopes", price = 400 },
+                new { id = "weapon.mod.small.scope", name = "16x Scope", category = "Scopes", price = 600 },
+                new { id = "weapon.mod.simplesight", name = "Simple Sight", category = "Scopes", price = 150 },
+                new { id = "weapon.mod.silencer", name = "Silencer", category = "Barrel", price = 250 },
+                new { id = "weapon.mod.muzzlebrake", name = "Muzzle Brake", category = "Barrel", price = 200 },
+                new { id = "weapon.mod.muzzleboost", name = "Muzzle Boost", category = "Barrel", price = 200 },
+                new { id = "weapon.mod.lasersight", name = "Lasersight", category = "Underbarrel", price = 150 },
+                new { id = "weapon.mod.flashlight", name = "Flashlight", category = "Underbarrel", price = 100 }
+            };
+            
+            int itemsPerPage = 6; // 3x2 grid
+            int totalPages = (int)Math.Ceiling(attachments.Length / (float)itemsPerPage);
+            int currentPage = Math.Max(0, Math.Min(state.CurrentStorePage, totalPages - 1));
+            int startIdx = currentPage * itemsPerPage;
+            int endIdx = Math.Min(startIdx + itemsPerPage, attachments.Length);
+            
+            // Render 3x2 grid
+            int itemIndex = 0;
+            for (int row = 0; row < 2; row++)
+            {
+                for (int col = 0; col < 3; col++)
+                {
+                    int dataIdx = startIdx + itemIndex;
+                    if (dataIdx >= endIdx) break;
+                    
+                    var attachment = attachments[dataIdx];
+                    float xMin = 0.05f + (col * 0.315f);
+                    float xMax = xMin + 0.30f;
+                    float yMin = 0.50f - (row * 0.40f);
+                    float yMax = yMin + 0.35f;
+                    
+                    var itemPanel = container.Add(new CuiPanel
+                    {
+                        Image = { Color = COLOR_SECONDARY },
+                        RectTransform = { AnchorMin = $"{xMin} {yMin}", AnchorMax = $"{xMax} {yMax}" }
+                    }, parent);
+                    
+                    // Attachment name
+                    container.Add(new CuiLabel
+                    {
+                        Text = {
+                            Text = attachment.name,
+                            FontSize = 13,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_TEXT
+                        },
+                        RectTransform = { AnchorMin = "0.1 0.75", AnchorMax = "0.9 0.9" }
+                    }, itemPanel);
+                    
+                    // Category
+                    container.Add(new CuiLabel
+                    {
+                        Text = {
+                            Text = attachment.category,
+                            FontSize = 10,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_TEXT_DIM
+                        },
+                        RectTransform = { AnchorMin = "0.1 0.65", AnchorMax = "0.9 0.73" }
+                    }, itemPanel);
+                    
+                    // Image placeholder
+                    var imageLibrary = plugins.Find("ImageLibrary");
+                    if (imageLibrary != null)
+                    {
+                        try
+                        {
+                            string imageUrl = (string)imageLibrary.Call("GetImage", attachment.id, (ulong)0);
+                            if (!string.IsNullOrEmpty(imageUrl))
+                            {
+                                container.Add(new CuiElement
+                                {
+                                    Name = $"attachment_image_{dataIdx}",
+                                    Parent = itemPanel,
+                                    Components =
+                                    {
+                                        new CuiRawImageComponent { Url = imageUrl },
+                                        new CuiRectTransformComponent { AnchorMin = "0.2 0.35", AnchorMax = "0.8 0.60" }
+                                    }
+                                });
+                            }
+                        }
+                        catch { }
+                    }
+                    
+                    // Price
+                    container.Add(new CuiLabel
+                    {
+                        Text = {
+                            Text = $"💰 {attachment.price}",
+                            FontSize = 12,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_WARNING
+                        },
+                        RectTransform = { AnchorMin = "0.1 0.20", AnchorMax = "0.9 0.30" }
+                    }, itemPanel);
+                    
+                    // Buy button
+                    bool owned = false; // Placeholder
+                    container.Add(new CuiButton
+                    {
+                        Button = {
+                            Color = owned ? COLOR_TEXT_DIM : COLOR_SUCCESS,
+                            Command = owned ? "" : $"killaui.store.purchase {attachment.id} {attachment.price}"
+                        },
+                        RectTransform = { AnchorMin = "0.15 0.05", AnchorMax = "0.85 0.18" },
+                        Text = {
+                            Text = owned ? "✓ OWNED" : "BUY NOW",
+                            FontSize = 11,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = owned ? COLOR_TEXT_DIM : COLOR_TEXT
+                        }
+                    }, itemPanel);
+                    
+                    itemIndex++;
+                }
+            }
+            
+            // Pagination controls
+            if (totalPages > 1)
+            {
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = $"Page {currentPage + 1}/{totalPages}",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT
+                    },
+                    RectTransform = { AnchorMin = "0.45 0.02", AnchorMax = "0.55 0.08" }
+                }, parent);
+                
+                if (currentPage > 0)
+                {
+                    container.Add(new CuiButton
+                    {
+                        Button = {
+                            Color = COLOR_ACCENT,
+                            Command = "killaui.store.page prev"
+                        },
+                        RectTransform = { AnchorMin = "0.30 0.02", AnchorMax = "0.42 0.08" },
+                        Text = {
+                            Text = "◄ PREV",
+                            FontSize = 11,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_TEXT
+                        }
+                    }, parent);
+                }
+                
+                if (currentPage < totalPages - 1)
+                {
+                    container.Add(new CuiButton
+                    {
+                        Button = {
+                            Color = COLOR_ACCENT,
+                            Command = "killaui.store.page next"
+                        },
+                        RectTransform = { AnchorMin = "0.58 0.02", AnchorMax = "0.70 0.08" },
+                        Text = {
+                            Text = "NEXT ►",
+                            FontSize = 11,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = COLOR_TEXT
+                        }
+                    }, parent);
+                }
+            }
+        }
+        
+        private void RenderStoreClothingCategory(CuiElementContainer container, string parent, BasePlayer player, PlayerUIState state)
+        {
+            var clothing = new[]
+            {
+                new { id = "metal.facemask", name = "Metal Facemask", protection = 50, price = 400 },
+                new { id = "metal.plate.torso", name = "Metal Chest Plate", protection = 80, price = 500 },
+                new { id = "roadsign.kilt", name = "Roadsign Kilt", protection = 40, price = 300 },
+                new { id = "roadsign.jacket", name = "Roadsign Vest", protection = 35, price = 300 },
+                new { id = "tactical.gloves", name = "Tactical Gloves", protection = 10, price = 150 }
+            };
+            
+            // Render all 5 items (no pagination needed)
+            for (int i = 0; i < clothing.Length; i++)
+            {
+                var item = clothing[i];
+                float xMin = 0.05f + (i % 3) * 0.315f;
+                float xMax = xMin + 0.30f;
+                float yMin = i < 3 ? 0.50f : 0.10f;
+                float yMax = yMin + 0.35f;
+                
+                var itemPanel = container.Add(new CuiPanel
+                {
+                    Image = { Color = COLOR_SECONDARY },
+                    RectTransform = { AnchorMin = $"{xMin} {yMin}", AnchorMax = $"{xMax} {yMax}" }
+                }, parent);
+                
+                // Item name
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = item.name,
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT
+                    },
+                    RectTransform = { AnchorMin = "0.1 0.75", AnchorMax = "0.9 0.9" }
+                }, itemPanel);
+                
+                // Image
+                var imageLibrary = plugins.Find("ImageLibrary");
+                if (imageLibrary != null)
+                {
+                    try
+                    {
+                        string imageUrl = (string)imageLibrary.Call("GetImage", item.id, (ulong)0);
+                        if (!string.IsNullOrEmpty(imageUrl))
+                        {
+                            container.Add(new CuiElement
+                            {
+                                Name = $"clothing_image_{i}",
+                                Parent = itemPanel,
+                                Components =
+                                {
+                                    new CuiRawImageComponent { Url = imageUrl },
+                                    new CuiRectTransformComponent { AnchorMin = "0.2 0.40", AnchorMax = "0.8 0.70" }
+                                }
+                            });
+                        }
+                    }
+                    catch { }
+                }
+                
+                // Protection value
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = $"Protection: {item.protection}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT_DIM
+                    },
+                    RectTransform = { AnchorMin = "0.1 0.32", AnchorMax = "0.9 0.40" }
+                }, itemPanel);
+                
+                // Price
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = $"💰 {item.price}",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_WARNING
+                    },
+                    RectTransform = { AnchorMin = "0.1 0.20", AnchorMax = "0.9 0.30" }
+                }, itemPanel);
+                
+                // Buy button
+                bool owned = false; // Placeholder
+                container.Add(new CuiButton
+                {
+                    Button = {
+                        Color = owned ? COLOR_TEXT_DIM : COLOR_SUCCESS,
+                        Command = owned ? "" : $"killaui.store.purchase {item.id} {item.price}"
+                    },
+                    RectTransform = { AnchorMin = "0.15 0.05", AnchorMax = "0.85 0.18" },
+                    Text = {
+                        Text = owned ? "✓ OWNED" : "BUY NOW",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = owned ? COLOR_TEXT_DIM : COLOR_TEXT
+                    }
+                }, itemPanel);
+            }
+        }
+        
+        private void RenderStoreSkinsCategory(CuiElementContainer container, string parent, BasePlayer player, PlayerUIState state)
+        {
+            // Sub-tabs for skins
+            container.Add(new CuiButton
+            {
+                Button = {
+                    Color = state.CurrentStoreSkinTab == "gun_skins" ? COLOR_ACCENT : COLOR_SECONDARY,
+                    Command = "killaui.store.skintab gun_skins"
+                },
+                RectTransform = { AnchorMin = "0.20 0.85", AnchorMax = "0.45 0.92" },
                 Text = {
-                    Text = "STORE TAB - Under Construction\n\nFeatures coming:\n• Guns\n• Attachments\n• Clothing/Armor\n• Skins (Gun & Armor)",
-                    FontSize = 18,
+                    Text = "GUN SKINS",
+                    FontSize = 12,
                     Align = TextAnchor.MiddleCenter,
                     Color = COLOR_TEXT
-                },
-                RectTransform = { AnchorMin = "0.3 0.3", AnchorMax = "0.7 0.7" }
+                }
             }, parent);
+            
+            container.Add(new CuiButton
+            {
+                Button = {
+                    Color = state.CurrentStoreSkinTab == "armor_skins" ? COLOR_ACCENT : COLOR_SECONDARY,
+                    Command = "killaui.store.skintab armor_skins"
+                },
+                RectTransform = { AnchorMin = "0.55 0.85", AnchorMax = "0.80 0.92" },
+                Text = {
+                    Text = "ARMOR SKINS",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = COLOR_TEXT
+                }
+            }, parent);
+            
+            // Content area
+            var contentArea = container.Add(new CuiPanel
+            {
+                Image = { Color = "0 0 0 0" },
+                RectTransform = { AnchorMin = "0.05 0.05", AnchorMax = "0.95 0.82" }
+            }, parent);
+            
+            if (state.CurrentStoreSkinTab == "gun_skins")
+            {
+                // Weapon selector
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = "Weapon:",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleRight,
+                        Color = COLOR_TEXT
+                    },
+                    RectTransform = { AnchorMin = "0.25 0.70", AnchorMax = "0.35 0.77" }
+                }, contentArea);
+                
+                container.Add(new CuiButton
+                {
+                    Button = {
+                        Color = COLOR_ACCENT,
+                        Command = "killaui.skins.weapon prev"
+                    },
+                    RectTransform = { AnchorMin = "0.36 0.70", AnchorMax = "0.42 0.77" },
+                    Text = {
+                        Text = "◄",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT
+                    }
+                }, contentArea);
+                
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = "AK-47",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_WARNING
+                    },
+                    RectTransform = { AnchorMin = "0.43 0.70", AnchorMax = "0.57 0.77" }
+                }, contentArea);
+                
+                container.Add(new CuiButton
+                {
+                    Button = {
+                        Color = COLOR_ACCENT,
+                        Command = "killaui.skins.weapon next"
+                    },
+                    RectTransform = { AnchorMin = "0.58 0.70", AnchorMax = "0.64 0.77" },
+                    Text = {
+                        Text = "►",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT
+                    }
+                }, contentArea);
+                
+                // Note about empty skins
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = "Gun skins configuration is empty.\nSkin system structure is ready for configuration.",
+                        FontSize = 14,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT_DIM
+                    },
+                    RectTransform = { AnchorMin = "0.3 0.35", AnchorMax = "0.7 0.60" }
+                }, contentArea);
+            }
+            else
+            {
+                // Armor skins
+                container.Add(new CuiLabel
+                {
+                    Text = {
+                        Text = "Armor skins configuration is empty.\nSkin system structure is ready for configuration.",
+                        FontSize = 14,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = COLOR_TEXT_DIM
+                    },
+                    RectTransform = { AnchorMin = "0.3 0.35", AnchorMax = "0.7 0.60" }
+                }, contentArea);
+            }
         }
         
         #endregion
         
-        #region STATS Tab (Placeholder - to be implemented)
+        #region STATS Tab
         
         private void RenderStatsTab(CuiElementContainer container, string parent, BasePlayer player)
         {
+            // Get player profile data from KillaDome
+            Dictionary<string, object> profileData = new Dictionary<string, object>();
+            try
+            {
+                var profileDataRaw = KillaDome?.Call("GetPlayerProfile", player.userID);
+                if (profileDataRaw != null)
+                {
+                    profileData = profileDataRaw as Dictionary<string, object>;
+                }
+            }
+            catch { }
+            
+            // Helper function to safely get stat values
+            int GetStat(string key, int defaultValue = 0)
+            {
+                if (profileData != null && profileData.ContainsKey(key))
+                {
+                    try { return Convert.ToInt32(profileData[key]); }
+                    catch { return defaultValue; }
+                }
+                return defaultValue;
+            }
+            
+            string GetStatString(string key, string defaultValue = "N/A")
+            {
+                if (profileData != null && profileData.ContainsKey(key))
+                {
+                    return profileData[key]?.ToString() ?? defaultValue;
+                }
+                return defaultValue;
+            }
+            
+            // Left column: COMBAT PERFORMANCE
+            var leftPanel = container.Add(new CuiPanel
+            {
+                Image = { Color = COLOR_SECONDARY },
+                RectTransform = { AnchorMin = "0.05 0.15", AnchorMax = "0.47 0.9" }
+            }, parent);
+            
             container.Add(new CuiLabel
             {
                 Text = {
-                    Text = "STATS TAB - Under Construction\n\nFeatures coming:\n• Combat Performance\n• Match History\n• Progression",
-                    FontSize = 18,
-                    Align = TextAnchor.MiddleCenter,
+                    Text = "COMBAT PERFORMANCE",
+                    FontSize = 16,
+                    Align = TextAnchor.UpperCenter,
+                    Color = COLOR_WARNING
+                },
+                RectTransform = { AnchorMin = "0.1 0.92", AnchorMax = "0.9 0.98" }
+            }, leftPanel);
+            
+            // Combat stats with better spacing
+            int kills = GetStat("kills", 0);
+            int deaths = GetStat("deaths", 0);
+            float kd = deaths > 0 ? (float)kills / deaths : kills;
+            int headshots = GetStat("headshots", 0);
+            float headshotPercent = kills > 0 ? (headshots * 100f / kills) : 0f;
+            int accuracy = GetStat("accuracy", 0);
+            int longestKill = GetStat("longest_kill", 0);
+            int bestStreak = GetStat("best_streak", 0);
+            
+            float yPos = 0.80f;
+            float spacing = 0.10f;
+            
+            // Total Kills
+            AddStatRow(container, leftPanel, "Total Kills", kills.ToString(), yPos);
+            yPos -= spacing;
+            
+            // Total Deaths
+            AddStatRow(container, leftPanel, "Total Deaths", deaths.ToString(), yPos);
+            yPos -= spacing;
+            
+            // K/D Ratio
+            AddStatRow(container, leftPanel, "K/D Ratio", kd.ToString("F2"), yPos);
+            yPos -= spacing;
+            
+            // Headshots
+            AddStatRow(container, leftPanel, "Headshots", $"{headshots} ({headshotPercent:F1}%)", yPos);
+            yPos -= spacing;
+            
+            // Accuracy
+            AddStatRow(container, leftPanel, "Accuracy", $"{accuracy}%", yPos);
+            yPos -= spacing;
+            
+            // Longest Kill
+            AddStatRow(container, leftPanel, "Longest Kill", $"{longestKill}m", yPos);
+            yPos -= spacing;
+            
+            // Best Streak
+            AddStatRow(container, leftPanel, "Best Streak", bestStreak.ToString(), yPos);
+            
+            // Right column: MATCH HISTORY & PROGRESSION
+            var rightPanel = container.Add(new CuiPanel
+            {
+                Image = { Color = COLOR_SECONDARY },
+                RectTransform = { AnchorMin = "0.53 0.15", AnchorMax = "0.95 0.9" }
+            }, parent);
+            
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = "MATCH HISTORY & PROGRESSION",
+                    FontSize = 16,
+                    Align = TextAnchor.UpperCenter,
+                    Color = COLOR_WARNING
+                },
+                RectTransform = { AnchorMin = "0.1 0.92", AnchorMax = "0.9 0.98" }
+            }, rightPanel);
+            
+            // Progression stats
+            int matchesPlayed = GetStat("matches_played", 0);
+            int wins = GetStat("wins", 0);
+            int losses = GetStat("losses", 0);
+            float winRate = matchesPlayed > 0 ? (wins * 100f / matchesPlayed) : 0f;
+            int bloodTokens = GetStat("blood_tokens", 0);
+            int totalPlaytime = GetStat("total_playtime", 0);
+            bool isVip = GetStatString("vip_status", "false") == "true";
+            string memberSince = GetStatString("member_since", "N/A");
+            
+            yPos = 0.80f;
+            
+            // Matches Played
+            AddStatRow(container, rightPanel, "Matches Played", matchesPlayed.ToString(), yPos);
+            yPos -= spacing;
+            
+            // Wins
+            AddStatRow(container, rightPanel, "Wins", wins.ToString(), yPos);
+            yPos -= spacing;
+            
+            // Losses
+            AddStatRow(container, rightPanel, "Losses", losses.ToString(), yPos);
+            yPos -= spacing;
+            
+            // Win Rate
+            AddStatRow(container, rightPanel, "Win Rate", $"{winRate:F1}%", yPos);
+            yPos -= spacing;
+            
+            // Blood Tokens
+            AddStatRow(container, rightPanel, "Blood Tokens 💰", bloodTokens.ToString(), yPos);
+            yPos -= spacing;
+            
+            // Total Playtime (convert minutes to hours)
+            int hours = totalPlaytime / 60;
+            int minutes = totalPlaytime % 60;
+            AddStatRow(container, rightPanel, "Total Playtime", $"{hours}h {minutes}m", yPos);
+            yPos -= spacing;
+            
+            // VIP Status
+            AddStatRow(container, rightPanel, "VIP Status", isVip ? "✓ Active" : "Inactive", yPos);
+            yPos -= spacing;
+            
+            // Member Since
+            AddStatRow(container, rightPanel, "Member Since", memberSince, yPos);
+            yPos -= spacing * 1.5f;
+            
+            // Recent Matches (simplified display)
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = "Recent Matches:",
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = COLOR_TEXT_DIM
+                },
+                RectTransform = { AnchorMin = $"0.15 {yPos - 0.03f}", AnchorMax = $"0.50 {yPos + 0.03f}" }
+            }, rightPanel);
+            
+            string recentMatches = GetStatString("recent_matches", "N/A");
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = recentMatches,
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleRight,
                     Color = COLOR_TEXT
                 },
-                RectTransform = { AnchorMin = "0.3 0.3", AnchorMax = "0.7 0.7" }
+                RectTransform = { AnchorMin = $"0.55 {yPos - 0.03f}", AnchorMax = $"0.85 {yPos + 0.03f}" }
+            }, rightPanel);
+        }
+        
+        private void AddStatRow(CuiElementContainer container, string parent, string label, string value, float yPos)
+        {
+            // Label (left side)
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = label,
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = COLOR_TEXT_DIM
+                },
+                RectTransform = { AnchorMin = $"0.15 {yPos - 0.03f}", AnchorMax = $"0.60 {yPos + 0.03f}" }
+            }, parent);
+            
+            // Value (right side)
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = value,
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleRight,
+                    Color = COLOR_TEXT
+                },
+                RectTransform = { AnchorMin = $"0.65 {yPos - 0.03f}", AnchorMax = $"0.85 {yPos + 0.03f}" }
             }, parent);
         }
         
         #endregion
         
-        #region SETTINGS Tab (Placeholder - to be implemented)
+        #region SETTINGS Tab
         
         private void RenderSettingsTab(CuiElementContainer container, string parent, BasePlayer player)
         {
+            var state = GetPlayerState(player.userID);
+            
+            // Get settings from KillaDome (or use defaults)
+            bool autoQueue = false;
+            bool showKillfeed = true;
+            bool levelUpNotif = true;
+            
+            try
+            {
+                var settingsData = KillaDome?.Call("GetPlayerSettings", player.userID);
+                if (settingsData != null && settingsData is Dictionary<string, object> settings)
+                {
+                    if (settings.ContainsKey("auto_queue"))
+                        autoQueue = Convert.ToBoolean(settings["auto_queue"]);
+                    if (settings.ContainsKey("show_killfeed"))
+                        showKillfeed = Convert.ToBoolean(settings["show_killfeed"]);
+                    if (settings.ContainsKey("level_up_notif"))
+                        levelUpNotif = Convert.ToBoolean(settings["level_up_notif"]);
+                }
+            }
+            catch { }
+            
+            float yPos = 0.75f;
+            
+            // GAMEPLAY SETTINGS Section
+            var gameplayPanel = container.Add(new CuiPanel
+            {
+                Image = { Color = COLOR_SECONDARY },
+                RectTransform = { AnchorMin = "0.15 0.55", AnchorMax = "0.85 0.85" }
+            }, parent);
+            
             container.Add(new CuiLabel
             {
                 Text = {
-                    Text = "SETTINGS TAB - Under Construction\n\nFeatures coming:\n• Gameplay Settings\n• Notifications\n• Account Management",
-                    FontSize = 18,
-                    Align = TextAnchor.MiddleCenter,
+                    Text = "GAMEPLAY SETTINGS",
+                    FontSize = 16,
+                    Align = TextAnchor.UpperCenter,
+                    Color = COLOR_WARNING
+                },
+                RectTransform = { AnchorMin = "0.1 0.88", AnchorMax = "0.9 0.96" }
+            }, gameplayPanel);
+            
+            // Auto-Queue Setting
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = "Auto-Queue:",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleLeft,
                     Color = COLOR_TEXT
                 },
-                RectTransform = { AnchorMin = "0.3 0.3", AnchorMax = "0.7 0.7" }
+                RectTransform = { AnchorMin = "0.15 0.60", AnchorMax = "0.45 0.70" }
+            }, gameplayPanel);
+            
+            // ON button
+            container.Add(new CuiButton
+            {
+                Button = {
+                    Color = autoQueue ? COLOR_SUCCESS : COLOR_SECONDARY,
+                    Command = "killaui.setting.toggle auto_queue true"
+                },
+                RectTransform = { AnchorMin = "0.50 0.60", AnchorMax = "0.62 0.70" },
+                Text = {
+                    Text = "ON",
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = COLOR_TEXT
+                }
+            }, gameplayPanel);
+            
+            // OFF button
+            container.Add(new CuiButton
+            {
+                Button = {
+                    Color = !autoQueue ? COLOR_DANGER : COLOR_SECONDARY,
+                    Command = "killaui.setting.toggle auto_queue false"
+                },
+                RectTransform = { AnchorMin = "0.65 0.60", AnchorMax = "0.77 0.70" },
+                Text = {
+                    Text = "OFF",
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = COLOR_TEXT
+                }
+            }, gameplayPanel);
+            
+            // Show Killfeed Setting
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = "Show Killfeed:",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = COLOR_TEXT
+                },
+                RectTransform = { AnchorMin = "0.15 0.42", AnchorMax = "0.45 0.52" }
+            }, gameplayPanel);
+            
+            // ON button
+            container.Add(new CuiButton
+            {
+                Button = {
+                    Color = showKillfeed ? COLOR_SUCCESS : COLOR_SECONDARY,
+                    Command = "killaui.setting.toggle show_killfeed true"
+                },
+                RectTransform = { AnchorMin = "0.50 0.42", AnchorMax = "0.62 0.52" },
+                Text = {
+                    Text = "ON",
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = COLOR_TEXT
+                }
+            }, gameplayPanel);
+            
+            // OFF button
+            container.Add(new CuiButton
+            {
+                Button = {
+                    Color = !showKillfeed ? COLOR_DANGER : COLOR_SECONDARY,
+                    Command = "killaui.setting.toggle show_killfeed false"
+                },
+                RectTransform = { AnchorMin = "0.65 0.42", AnchorMax = "0.77 0.52" },
+                Text = {
+                    Text = "OFF",
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = COLOR_TEXT
+                }
+            }, gameplayPanel);
+            
+            // NOTIFICATIONS Section
+            var notifPanel = container.Add(new CuiPanel
+            {
+                Image = { Color = COLOR_SECONDARY },
+                RectTransform = { AnchorMin = "0.15 0.32", AnchorMax = "0.85 0.50" }
             }, parent);
+            
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = "NOTIFICATIONS",
+                    FontSize = 16,
+                    Align = TextAnchor.UpperCenter,
+                    Color = COLOR_WARNING
+                },
+                RectTransform = { AnchorMin = "0.1 0.78", AnchorMax = "0.9 0.92" }
+            }, notifPanel);
+            
+            // Level Up Notification
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = "Level Up:",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = COLOR_TEXT
+                },
+                RectTransform = { AnchorMin = "0.15 0.35", AnchorMax = "0.45 0.55" }
+            }, notifPanel);
+            
+            // ON button
+            container.Add(new CuiButton
+            {
+                Button = {
+                    Color = levelUpNotif ? COLOR_SUCCESS : COLOR_SECONDARY,
+                    Command = "killaui.setting.toggle level_up_notif true"
+                },
+                RectTransform = { AnchorMin = "0.50 0.35", AnchorMax = "0.62 0.55" },
+                Text = {
+                    Text = "ON",
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = COLOR_TEXT
+                }
+            }, notifPanel);
+            
+            // OFF button
+            container.Add(new CuiButton
+            {
+                Button = {
+                    Color = !levelUpNotif ? COLOR_DANGER : COLOR_SECONDARY,
+                    Command = "killaui.setting.toggle level_up_notif false"
+                },
+                RectTransform = { AnchorMin = "0.65 0.35", AnchorMax = "0.77 0.55" },
+                Text = {
+                    Text = "OFF",
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = COLOR_TEXT
+                }
+            }, notifPanel);
+            
+            // ACCOUNT Section
+            var accountPanel = container.Add(new CuiPanel
+            {
+                Image = { Color = COLOR_SECONDARY },
+                RectTransform = { AnchorMin = "0.15 0.10", AnchorMax = "0.85 0.27" }
+            }, parent);
+            
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = "ACCOUNT",
+                    FontSize = 16,
+                    Align = TextAnchor.UpperCenter,
+                    Color = COLOR_WARNING
+                },
+                RectTransform = { AnchorMin = "0.1 0.70", AnchorMax = "0.9 0.92" }
+            }, accountPanel);
+            
+            // Warning icon and text
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = "⚠️",
+                    FontSize = 20,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = COLOR_WARNING
+                },
+                RectTransform = { AnchorMin = "0.15 0.25", AnchorMax = "0.25 0.55" }
+            }, accountPanel);
+            
+            container.Add(new CuiLabel
+            {
+                Text = {
+                    Text = "Warning: This action cannot be undone!",
+                    FontSize = 11,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = COLOR_TEXT_DIM
+                },
+                RectTransform = { AnchorMin = "0.27 0.25", AnchorMax = "0.65 0.55" }
+            }, accountPanel);
+            
+            // Reset Progress Button
+            container.Add(new CuiButton
+            {
+                Button = {
+                    Color = COLOR_DANGER,
+                    Command = "killaui.account.reset"
+                },
+                RectTransform = { AnchorMin = "0.68 0.25", AnchorMax = "0.85 0.55" },
+                Text = {
+                    Text = "RESET\nPROGRESS",
+                    FontSize = 10,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = COLOR_TEXT
+                }
+            }, accountPanel);
         }
         
         #endregion
@@ -1254,6 +2304,133 @@ namespace Oxide.Plugins
             
             player.ChatMessage("Outfit reset to default.");
             ShowMainUI(player, "loadouts");
+        }
+        
+        [ConsoleCommand("killaui.store.category")]
+        private void CmdStoreCategory(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            
+            if (arg.Args == null || arg.Args.Length < 1) return;
+            
+            string category = arg.Args[0];
+            var state = GetPlayerState(player.userID);
+            state.CurrentStoreCategory = category;
+            state.CurrentStorePage = 0; // Reset to first page when changing category
+            
+            ShowMainUI(player, "store");
+        }
+        
+        [ConsoleCommand("killaui.store.page")]
+        private void CmdStorePage(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            
+            if (arg.Args == null || arg.Args.Length < 1) return;
+            
+            string direction = arg.Args[0];
+            var state = GetPlayerState(player.userID);
+            
+            if (direction == "next")
+            {
+                state.CurrentStorePage++;
+            }
+            else if (direction == "prev")
+            {
+                state.CurrentStorePage = Math.Max(0, state.CurrentStorePage - 1);
+            }
+            
+            ShowMainUI(player, "store");
+        }
+        
+        [ConsoleCommand("killaui.store.purchase")]
+        private void CmdStorePurchase(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            
+            if (arg.Args == null || arg.Args.Length < 2) return;
+            
+            string itemId = arg.Args[0];
+            int price = arg.GetInt(1, 0);
+            
+            // Call KillaDome to purchase item
+            var result = KillaDome?.Call("PurchaseItem", player.userID, itemId, price);
+            
+            if (result != null && (bool)result)
+            {
+                player.ChatMessage($"Successfully purchased {itemId} for {price} Blood Tokens!");
+            }
+            else
+            {
+                player.ChatMessage("Purchase failed. Not enough Blood Tokens or item already owned.");
+            }
+            
+            ShowMainUI(player, "store");
+        }
+        
+        [ConsoleCommand("killaui.store.skintab")]
+        private void CmdStoreSkinTab(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            
+            if (arg.Args == null || arg.Args.Length < 1) return;
+            
+            string skinTab = arg.Args[0];
+            var state = GetPlayerState(player.userID);
+            state.CurrentStoreSkinTab = skinTab;
+            
+            ShowMainUI(player, "store");
+        }
+        
+        [ConsoleCommand("killaui.skins.weapon")]
+        private void CmdSkinsWeapon(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            
+            if (arg.Args == null || arg.Args.Length < 1) return;
+            
+            string direction = arg.Args[0];
+            // TODO: Implement weapon cycling for skin selection
+            // For now, just refresh UI
+            
+            ShowMainUI(player, "store");
+        }
+        
+        [ConsoleCommand("killaui.setting.toggle")]
+        private void CmdSettingToggle(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            
+            if (arg.Args == null || arg.Args.Length < 2) return;
+            
+            string settingName = arg.Args[0];
+            bool value = arg.GetBool(1, true);
+            
+            // Call KillaDome to save the setting
+            KillaDome?.Call("SetPlayerSetting", player.userID, settingName, value);
+            
+            // Refresh UI
+            ShowMainUI(player, "settings");
+        }
+        
+        [ConsoleCommand("killaui.account.reset")]
+        private void CmdAccountReset(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            
+            // Show confirmation message
+            player.ChatMessage("⚠️ WARNING: Are you sure you want to reset your progress?");
+            player.ChatMessage("Type '/kd resetconfirm' to confirm or close this UI to cancel.");
+            
+            // Note: The actual reset would be handled by a different command in KillaDome
+            // This is just the UI trigger
         }
         
         #endregion
