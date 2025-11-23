@@ -789,8 +789,8 @@ namespace Oxide.Plugins
                     RectTransform = { AnchorMin = $"0.05 {yMin}", AnchorMax = $"0.95 {yMax}" }
                 }, previewPanel);
                 
-                // Use default armor items for now
-                string currentArmorItem = defaultArmorItems[i];
+                // Get the current armor type for this slot from player state
+                string currentArmorItem = GetPlayerArmorType(player.userID, armorSlotNames[i]);
                 
                 // Armor type cycle buttons (left side)
                 container.Add(new CuiButton
@@ -1021,7 +1021,7 @@ namespace Oxide.Plugins
 
         private string GetPlayerArmorType(ulong playerId, string slot)
         {
-            var state = GetOrCreatePlayerState(playerId);
+            var state = GetPlayerState(playerId);
             if (state.ArmorSlotTypes.ContainsKey(slot))
                 return state.ArmorSlotTypes[slot];
             
@@ -1039,7 +1039,7 @@ namespace Oxide.Plugins
 
         private void SetPlayerArmorType(ulong playerId, string slot, string armorType)
         {
-            var state = GetOrCreatePlayerState(playerId);
+            var state = GetPlayerState(playerId);
             state.ArmorSlotTypes[slot] = armorType;
         }
         
@@ -1209,6 +1209,27 @@ namespace Oxide.Plugins
             KillaDome?.Call("CycleArmorSkin", player.userID, armorSlot, direction);
             
             // Refresh UI
+            ShowMainUI(player, "loadouts");
+        }
+        
+        [ConsoleCommand("killaui.armor.type")]
+        private void CmdArmorType(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            
+            if (arg.Args == null || arg.Args.Length < 2) return;
+            
+            string slot = arg.Args[0]; // e.g., "head", "chest", "legs", "torso", "hands"
+            int direction = arg.GetInt(1, 1);
+            
+            // Get player state
+            var state = GetPlayerState(player.userID);
+            
+            // Call KillaDome to cycle armor type
+            KillaDome?.Call("CycleArmor", player.userID, slot, direction);
+            
+            // Refresh UI to show the new armor type
             ShowMainUI(player, "loadouts");
         }
         
