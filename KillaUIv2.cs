@@ -905,7 +905,7 @@ namespace Oxide.Plugins
             }, skinPanel);
             
             // Skin selection for each armor piece
-            for (int i = 0; i < armorSlots.Length; i++)
+            for (int i = 0; i < armorSlotNames.Length; i++)
             {
                 float yMin = 0.80f - (i * 0.17f);
                 float yMax = yMin + 0.15f;
